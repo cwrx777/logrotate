@@ -276,6 +276,20 @@ static char *readPath(const char *configFile, int lineNum, const char *key,
     return path;
 }
 
+// Function to check if a string is a number
+static int isNumber(const char *str) {
+    if (str == NULL || *str == '\0') {
+        return 0;
+    }
+    while (*str) {
+        if (!isdigit((unsigned char)*str)) {
+            return 0;
+        }
+        str++;
+    }
+    return 1;
+}
+
 /* set *pUid to UID of the given user, return non-zero on failure */
 static int resolveUid(const char *userName, uid_t *pUid)
 {
@@ -414,17 +428,30 @@ static int readModeUidGid(const char *configFile, int lineNum, const char *key,
     }
 
     if (groupstr) {
-        if (resolveGid(groupstr, pGid) != 0) {
-            message(MESS_ERROR, "%s:%d unknown group '%s'\n", configFile, lineNum, groupstr);
-            goto cleanup;
+        if (isNumber(groupstr)) {
+            // Convert numeric string to gid_t and set pGid
+            *pGid = (gid_t) strtoul(groupstr, NULL, 10);
+        } else {
+            // Resolve group name to GID
+            if (resolveGid(groupstr, pGid) != 0) {
+                message(MESS_ERROR, "%s:%d unknown group '%s'\n", configFile, lineNum, groupstr);
+                goto cleanup;
+            }
         }
     }
 
     if (userstr) {
-        if (resolveUid(userstr, pUid) != 0) {
-            message(MESS_ERROR, "%s:%d unknown user '%s'\n", configFile, lineNum, userstr);
-            goto cleanup;
+        if (isNumber(userstr)) {
+            // Convert numeric string to uid_t and set pUid
+            *pUid = (uid_t) strtoul(userstr, NULL, 10);
         }
+        else {
+            if (resolveUid(userstr, pUid) != 0) {
+                message(MESS_ERROR, "%s:%d unknown user '%s'\n", configFile, lineNum, userstr);
+                goto cleanup;
+            }
+        }
+        
     }
 
     if (modestr) {
